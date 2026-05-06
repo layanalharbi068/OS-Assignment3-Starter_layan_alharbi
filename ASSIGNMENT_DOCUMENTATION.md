@@ -1,7 +1,7 @@
 # Assignment 3 - Complete Documentation
 
-**Student Name**: [Your Full Name]  
-**Student ID**: [Your ID]  
+**Student Name**: [layan alharbi]  
+**Student ID**: [445052068]  
 **Date Submitted**: [Submission Date]
 
 ---
@@ -31,56 +31,56 @@
 
 Document your development process with **minimum 3 entries** showing progression:
 
-### Entry 1 - [Date, Time]
+### Entry 1 - [may 3 2026, 6;00pm]
 **What I implemented**: 
-
+set my student id 
 **Challenges encountered**: 
-
+nothing
 **How I solved it**: 
-
+didnt face any challenges
 **Testing approach**: 
-
+ran the code  to verify that the simulation header correctly displayed my student ID
 **Time spent**: 
-
+10 minutes
 ---
 
-### Entry 2 - [Date, Time]
+### Entry 2 - [may 6 2026, 1;30 am]
 **What I implemented**: 
-
+added reentrantLock to protect your counter variables
 **Challenges encountered**: 
-
+nothing
 **How I solved it**: 
-
+didnt face any
 **Testing approach**: 
-
+Verified that the totalWaitingTime and contextSwitchCount were consistent across runs, ensuring no increments were "lost" due to race conditions.
 **Time spent**: 
-
+30 minutes
 ---
 
-### Entry 3 - [Date, Time]
+### Entry 3 -[may 6 2026, 2;30 am]
 **What I implemented**: 
-
+added accuire and release cpu semaphore in the run method
 **Challenges encountered**: 
-
+nothing
 **How I solved it**: 
 
 **Testing approach**: 
-
+Checked for "Deadlocks" by ensuring the program always reached the "ALL PROCESSES COMPLETED" message without hanging.
 **Time spent**: 
-
+30 minutes
 ---
 
-### Entry 4 - [Date, Time]
+### Entry 4 - [may 6 2026, 3;00am]
 **What I implemented**: 
-
+implement synchronizaition in runToCompletion method
 **Challenges encountered**: 
-
+nothing
 **How I solved it**: 
 
 **Testing approach**: 
-
+Confirmed that the "Total Completed Processes" displayed in the final summary table matched the total number of processes generated at the start of the simulation.
 **Time spent**: 
-
+30 minutes
 ---
 
 ### Entry 5 - [Date, Time]
@@ -106,7 +106,16 @@ Document your development process with **minimum 3 entries** showing progression
 
 **Your Answer**:
 
-[Your answer here - 4-6 sentences with code examples]
+[The first race condition affects shared counters like contextSwitchCount, where concurrent read-modify-write operations by multiple threads lead to "lost updates". The second affects the executionLog because ArrayList is not thread-safe; concurrent access causes data corruption or ConcurrentModificationException. These issues result in inconsistent final statistics, such as incorrect average waiting times or incomplete execution logs. Without synchronization, the scheduler produces unreliable, non-deterministic outputs that fail to reflect the true state of the simulation.
+
+code example
+ublic static void incrementContextSwitch() {
+    contextSwitchCount++; // RACE CONDITION: Multiple threads read/write at once!
+}
+
+public static void logExecution(String message) {
+    executionLog.add(message); // RACE CONDITION: Can crash or lose log entries
+}]
 
 ---
 
@@ -115,7 +124,9 @@ Document your development process with **minimum 3 entries** showing progression
 
 **Your Answer**:
 
-[Your answer here - explain your implementation choices]
+[ReentrantLock (The "Lock"): This is a mutual exclusion mechanism. It ensures that only one thread can access a specific piece of data at a time. I used it in SharedResources to protect the counters and the execution log because these involve individual data updates that must be completed without interference.
+
+Semaphore (The "Signaler"): This is a resource controller that uses permits. It is used to manage access to a limited resource. I used a binary semaphore in the Process class to represent the CPU, ensuring that only one process can "run" its execution logic at any given moment.]
 
 ---
 
@@ -124,7 +135,11 @@ Document your development process with **minimum 3 entries** showing progression
 
 **Your Answer**:
 
-[Your answer here - reference try-finally blocks, lock ordering, etc.]
+[deadlock is a "traffic jam" in your code where two or more threads are stuck forever because each is holding a resource (like a lock) that the other needs. Neither can move forward, and the program freezes.
+
+Technique 1: Guaranteed Release: I used try-finally blocks for every lock and semaphore. By putting .unlock() or .release() in the finally block, I ensured the resource is always freed, even if the code crashes or is interrupted.
+
+Technique 2: Fine-Grained Locking: Instead of using one big lock for everything, I used separate locks for different variables (e.g., contextSwitchLock for the counter and logLock for the list). This prevents threads from blocking each other when they are working on unrelated tasks..]
 
 ---
 
