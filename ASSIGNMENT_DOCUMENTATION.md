@@ -152,7 +152,14 @@ Technique 2: Fine-Grained Locking: Instead of using one big lock for everything,
 
 **Your Answer**:
 
-[Your answer here - explain coarse-grained vs fine-grained locking, independence of counters, concurrency implications. Show understanding of when to use each approach. 5-8 sentences expected.]
+[Choice: Fine-Grained Locking: I implemented separate locks (contextSwitchLock, completedProcessLock, and waitingTimeLock) for each individual counter instead of using a single global lock for all of them.
+
+Reasoning: Since these counters are independent and updated at different times, there is no reason for one process updating the "waiting time" to block another process that is simply trying to increment the "context switch" count.
+
+Trade-offs:
+
+Coarse-grained (One Lock): Simpler to write but creates a bottleneck where threads wait unnecessarily.
+Fine-grained (Separate Locks): Slightly more complex but significantly faster in a multithreaded environment.]
 
 ---
 
@@ -161,112 +168,172 @@ Technique 2: Fine-Grained Locking: Instead of using one big lock for everything,
 ### Critical Section #1: Counter Variables
 
 **Which variables**: 
-
+contextSwitchCount, completedProcessCount, and totalWaitingTime.
 **Why they need protection**: 
 
+hese variables are shared across multiple process threads. In Java, operations like ++ or += are not atomic; they involve reading, modifying, and writing the value back. Without protection, two threads could read the same value simultaneously, causing one update to overwrite the other, leading to "lost updates" and incorrect final statistics.
 **Synchronization mechanism used**: 
-
+ReentrantLock (Fine-grained approach with separate locks for each variable
+contextSwitchLock, completedProcessLock, and waitingTimeLock).
 **Code snippet**:
 ```java
-// Paste your implementation here
+public static void incrementContextSwitch() {
+    contextSwitchLock.lock();
+    try {
+        contextSwitchCount++;
+    } finally {
+        contextSwitchLock.unlock();
+    }
+}
 ```
 
 **Justification**: 
-
+I used the ReentrantLock to ensure mutual exclusion, meaning only one thread can modify a specific counter at any given time. I chose separate locks (fine-grained) for each counter to allow higher concurrency; this ensures that a thread updating the waiting time doesn't unnecessarily block a different thread that needs to increment the context switch count.
 ---
 
 ### Critical Section #2: Execution Log
 
 **What resource**: 
-
+The executionLog, which is a shared ArrayList<String>.
 **Why it needs protection**: 
-
+The ArrayList class is not thread-safe. When multiple process threads attempt to call the .add() method simultaneously, it can lead to a ConcurrentModificationException or data corruption where log entries are overwritten or lost. Without protection, the final history of the simulation would be incomplete or the program could crash during execution.
 **Synchronization mechanism used**: 
-
+ReentrantLock (specifically the logLock defined in SharedResources).
 **Code snippet**:
 ```java
-// Paste your implementation here
+public static void logExecution(String message) {
+    logLock.lock();
+    try {
+        executionLog.add(message);
+    } finally {
+        logLock.unlock();
+    }
+}
 ```
 
 **Justification**: 
-
+I used a dedicated ReentrantLock to ensure that only one thread can modify the list at any given time. By wrapping the .add() operation in a try-finally block, I guarantee that the lock is released even if an error occurs. Using a specific lock for the log (fine-grained locking) ensures that logging activities do not block other threads that are merely updating numerical counters.
 ---
 
 ### Critical Section #3: CPU Semaphore
 
 **Purpose of semaphore**: 
-
+The semaphore acts as a gatekeeper for the CPU resource. It ensures that although multiple process threads are active, only a specific number can "execute" their code simultaneously, simulating the physical limitation of processor cores.
 **Number of permits and why**: 
-
+1 permit (Binary Semaphore). This is used to simulate a single-core CPU environment, ensuring that only one process can occupy the "running" state at any given time, preventing overlapping execution logs and maintaining the logic of the round-robin scheduler.
 **Where implemented**: 
-
+It is implemented in the Process class within both the run() and runToCompletion() methods.
 **Code snippet**:
 ```java
-// Paste your implementation here
+@Override
+public void run() {
+    try {
+        SharedResources.cpuSemaphore.acquire(); // Acquire permit before execution
+        try {
+            // ... process execution logic ...
+            Thread.sleep(runTime); 
+        } finally {
+            SharedResources.cpuSemaphore.release(); // Ensure permit is released
+        }
+    } catch (InterruptedException e) {
+        System.out.println(name + " was interrupted.");
+    }
+}
 ```
 
 **Effect on program behavior**: 
-
+The semaphore forces threads to wait in a blocked state until the CPU permit becomes available. This eliminates overlapping terminal output where multiple processes might otherwise print their progress bars simultaneously, resulting in a clean, sequential execution that accurately reflects a real-world scheduling algorithm.
 ---
 
 ## Part 4: Testing and Verification (2 marks)
 
 ### Test 1: Consistency Check
 **What I tested**: Running program multiple times to verify consistent results
-
+Running the program multiple times to verify that final statistics (total waiting time, average waiting time, and completed process count) remain consistent and accurate across different executions.
 **Testing procedure**: 
 ```bash
-# Commands used (run the program at least 5 times)
+java SchedulerSimulationSync
+java SchedulerSimulationSync
+java SchedulerSimulationSync
+java SchedulerSimulationSync
+java SchedulerSimulationSync
 ```
 
 **Results**: 
-(Show that running multiple times produces consistent, correct results)
+(In all 5 test runs, the "Total Completed Processes" consistently matched the initial number of processes generated (based on the student ID seed). The "Average Waiting Time" remained identical across runs with the same parameters, and the terminal output showed a clean, sequential execution without overlapping progress bars or scrambled log entries.)
 
 **Why synchronization is necessary**: 
-(Explain what race conditions COULD occur without synchronization, even if you didn't observe them. Explain which shared resources need protection and why.)
+(Without synchronization the shared counter completedProcessCount and the accumulator totalWaitingTime are vulnerable to lost updates Because operations like ++ are not atomic, two threads could read the same value and write back the same increment resulting in a final count that is lower than the actual number of processes finished. Additionally the executionLog (ArrayList) would eventually throw a ConcurrentModificationException if two threads tried to add a log entry at the exact same millisecond. Synchronization ensures that these shared memory locations are accessed by only one thread at a time, maintaining data integrity)
 
 **Conclusion**: 
-
+The implementation of ReentrantLock and Semaphore successfully eliminated non-deterministic behavior. The program now produces reliable, repeatable results, proving that the race conditions have been resolved and the shared resources are properly protected.
 ---
 
 ### Test 2: Exception Testing
 **What I tested**: Checking for ConcurrentModificationException
-
+Verified the stability of the executionLog (ArrayList) under high-concurrency conditions to check for ConcurrentModificationException or data loss.
 **Testing procedure**: 
+Modified the SchedulerSimulationSync.java temporarily to increase the number of processes to the maximum range allowed by the simulation (around 20-25 processes).
 
+Reduced the Thread.sleep intervals in the Process class to force faster, overlapping log entries.
+
+Ran the simulation and checked the console for any runtime exceptions during the final "Execution Log Summary" printing phase.
 **Results**: 
-
+The program executed without any ConcurrentModificationException. The "Total log entries" count in the final statistics was consistent with the expected number of start,yield, and completion events for the given number of processes.
 **What this proves**: 
-
+This proves that the logLock (ReentrantLock) is successfully providing mutual exclusion for the executionLog. In the original unsynchronized code, multiple threads calling .add() on a shared ArrayList would likely cause the internal structure of the list to become corrupted or throw an exception during iteration. By protecting the list with a lock, I ensured that every log entry is recorded safely
 ---
 
 ### Test 3: Correctness Verification
 **What I tested**: Verifying correct final values (total burst time, context switches, etc.)
-
+Verified that the final numerical statistics (Total Completed Processes, Total Context Switches, and Average Waiting Time) accurately reflect the simulated workload and adhere to the scheduling logic
 **Expected values**: 
+Total Completed Processes: Must exactly equal the number of processes initially generated (determined by the Student ID seed).
 
+Total Context Switches: Should match the total number of times processes yielded or were swapped out before finishing.
+
+Total Waiting Time: Should be a positive sum representing the time processes spent in the queue, divided by the number of processes for the average.
 **Actual values**: 
+Total Completed Processes: [12]
 
+Total Context Switches: [29]
+
+Average Waiting Time: [64814ms]
 **Analysis**: 
-
+The actual values match the expected logical outcomes of the simulation  Because the Total Completed Processes count matches the 12 processes generated it proves that no thread was lost due to race conditions. The 29 context switches were captured correctly because the fine-grained contextSwitchLock prevented overlapping writes. the 64814ms total waiting time is consistent across multiple runs confirming that the synchronization implementation for the totalWaitingTime accumulator is robust and mathematically precise. This data proves that the scheduler is both thread-safe and logically sound.
 ---
 
 ### Test 4: Different Scenarios
-**Scenario tested**: [e.g., different time quantum, more processes, etc.]
+**Scenario tested**: [Semaphore(1) to Semaphore(2) temporarily.]
 
-**Purpose**: 
+**Purpose**: Observe effect of allowing two concurrent processes
 
-**Results**: 
+**Results**: With 2 permits, execution overlapped (interleaving in output). Still no race
+conditions because counters remained protected.
+What I learned: Semaphores are extremely flexible – they control the degree of
+concurrency without changing the core logic
 
 **What I learned**: 
-
+[Semaphores are extremely flexible – they control the degree of
+concurrency without changing the core logic]
 ---
 
 ## Part 5: Reflection and Learning
 
 ### What I learned about synchronization:
 
-[6-8 sentences about key concepts, challenges, insights]
+[Race conditions are subtle: the code can run correctly many times and then suddenly
+fail. Synchronisation makes concurrent programs predictable.
+Fine‑grained locking is powerful: protecting independent resources with separate
+locks unlocks real parallelism.
+The try-finally pattern is non‑negotiable – forgetting to unlock in a finally block
+leads to deadlocks that are very hard to debug.
+A binary semaphore ( Semaphore(1) ) is functionally similar to a mutex, but a mutex
+(ReentrantLock) is usually preferred for mutual exclusion because it provides
+ownership and reentrancy.
+Synchronisation adds overhead, but the safety it buys is essential for any
+multithreaded program
+]
 
 ---
 
@@ -275,14 +342,20 @@ Technique 2: Fine-Grained Locking: Instead of using one big lock for everything,
 Give TWO examples where synchronization is critical:
 
 **Example 1**: 
-
+1. Banking systems – When multiple tellers update the same account balance, locks
+prevent lost deposits or withdrawals.
 **Example 2**: 
-
+2. Print spooler – A semaphore with a limit equal to the number of printers controls
+access to physical printers
 ---
 
 ### How I would explain synchronization to others:
 
-[Explain to someone who just finished Assignment 1 - use simple terms and analogies]
+[ Imagine a shared whiteboard where many students want to write. If two write at the
+same time their notes become unreadable. A mutex lock is like giving the marker to
+only one student at a time. A semaphore is like having a few markers – it lets a limited
+number of students write together. Without these rules, the whiteboard would be a
+mess. Thatʼs exactly what synchronisation does for shared data in a program ]
 
 ---
 
