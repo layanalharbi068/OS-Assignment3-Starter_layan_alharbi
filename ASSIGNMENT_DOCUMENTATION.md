@@ -364,31 +364,33 @@ Basically synchronization makes sure that no matter how fast or messy the thread
 
 ## Part 6: GitHub Repository Information
 
-**Repository URL**: 
+**Repository URL**: https://github.com/layanalharbi068/OS-Assignment3-Starter_layan_alharbi
 
-**Number of commits**: 
+**Number of commits**: 7
 
 **Commit messages**: 
-1. 
-2. 
-3. 
-4. 
+1. set my student ID:445052068
+2. Added reentrantlock toprotect counter variables
+3. added acuire and release CPU semaphore in run method
+4. implement synchornizaiton in runToCompletion method
 
 ---
 
 ## Summary
 
 **Total time spent on assignment**: 
-
+4 hours
 **Key takeaways**: 
-1. 
-2. 
-3. 
+1. . Fine‑grained locking improves performance for independent resources
+2. try-finally is the only safe way to release locks
+3. . A semaphore can control both mutual exclusion and resource limits
 
 **Most challenging aspect**: 
-
+: Deciding on lock granularity and proving that separate locks
+are safe 
 **What I'm most proud of**: 
-
+ The final program runs deterministically, with no exceptions,
+and the code clearly shows why each synchronisation mechanism is used
 ---
 
 **End of Documentation**
