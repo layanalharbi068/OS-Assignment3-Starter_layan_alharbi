@@ -351,11 +351,14 @@ access to physical printers
 
 ### How I would explain synchronization to others:
 
-[ Imagine a shared whiteboard where many students want to write. If two write at the
-same time their notes become unreadable. A mutex lock is like giving the marker to
-only one student at a time. A semaphore is like having a few markers – it lets a limited
-number of students write together. Without these rules, the whiteboard would be a
-mess. Thatʼs exactly what synchronisation does for shared data in a program ]
+[ When you have multiple threads running at the same time  they all try to grab and change the same data at once This causes race conditions where the numbers get messed up because two threads colided
+
+To keep things organized I used:
+Locks: Only one thread can hold the key at a time to change a counter so no one else can mess with it until they're done.
+
+Semaphores:  It limits how many threads can use the CPU at once so the program doesn't crash or overlap.
+
+Basically synchronization makes sure that no matter how fast or messy the threads are the final answer is always correct and consistent. ]
 
 ---
 
